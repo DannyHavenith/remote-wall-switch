@@ -10,10 +10,10 @@
 
 #include "avr_utilities/pin_definitions.hpp"
 
-PIN_TYPE( B, 6)led;
-PIN_TYPE( B, 7)transmit;
+PIN_TYPE( B, 6) led;
+PIN_TYPE( B, 7) transmit;
 
-struct code
+struct Code
 {
     /// how long to wait between sending the same signal again in units of
     /// 4 microseconds.
@@ -33,15 +33,16 @@ struct code
     Symbol alphabet[2];
 };
 
-constexpr code codes[] = {
+constexpr Code codes[] = {
     // quigg
-    { 17000, 20, 175, { { 175, 350 }, { 350, 175 } } },
+    { 17000,    20,     175,{ { 175, 350 }, { 350, 175 } } },
 
     // impuls
-    { 1500, 25, 0, { { 140, 49 }, { 42, 147 } } } };
+    { 1500,     25,     0,  { { 140, 49 }, { 42, 147 } } } };
 
 constexpr int quigg = 0;
 constexpr int impuls = 1;
+
 
 namespace
 {
@@ -60,7 +61,7 @@ void delay_4us(uint16_t delay)
     );
 }
 
-void send_symbol(const code::Symbol &symbol)
+void send_symbol(const Code::Symbol &symbol)
 {
     toggle( transmit);
     delay_4us( symbol[0]);
@@ -68,7 +69,7 @@ void send_symbol(const code::Symbol &symbol)
     delay_4us( symbol[1]);
 }
 
-void send_code_once(const code &code, uint32_t value)
+void send_command_once(const Code &code, uint32_t value)
 {
     if (code.us4_delay_after_invert)
     {
@@ -86,43 +87,43 @@ void send_code_once(const code &code, uint32_t value)
     clear( transmit);
 }
 
-void send_code( const code &code, uint32_t value, uint8_t count = 4)
+void send_command( const Code &code, uint32_t value, uint8_t count = 4)
 {
     for (; count; --count)
     {
-        send_code_once(code, value);
+        send_command_once(code, value);
         delay_4us( code.us4_between_repeats);
     }
 }
 
 void on2()
 {
-    send_code( codes[quigg], 0b11001001000000001101);
+    send_command( codes[quigg], 0b11001001000000001101);
 }
 
 void off2()
 {
-    send_code( codes[quigg], 0b01000001000000001101);
+    send_command( codes[quigg], 0b01000001000000001101);
 }
 
 void onA()
 {
-    send_code( codes[impuls], 0b1110101010101110000000000);
+    send_command( codes[impuls], 0b1110101010101110000000000);
 }
 
 void offA()
 {
-    send_code( codes[impuls], 0b1011101010101110000000000);
+    send_command( codes[impuls], 0b1011101010101110000000000);
 }
 
 void onC()
 {
-    send_code( codes[impuls], 0b1110101011101010000000000);
+    send_command( codes[impuls], 0b1110101011101010000000000);
 }
 
 void offC()
 {
-    send_code( codes[impuls], 0b1011101011101010000000000);
+    send_command( codes[impuls], 0b1011101011101010000000000);
 }
 }
 
