@@ -48,9 +48,15 @@ struct Encoding
     /// how many bits in one transmission
     uint8_t bits;
 
-    /// whether to invert the signal and if so: how long to wait after inversion
-    /// in units of 4 microseconds
-    uint16_t us4_delay_after_invert;
+    /// start symbol: how long to stay high before starting
+    /// a pulse train. If us4_start_high is non-zero and
+    /// us4_start_low is zero, the signal will go up and all
+    /// subsequent pulses will be low-active
+    /// If us4_start_low is non-zero and
+    uint16_t us4_start_high;
+
+    /// how long to stay low before starting a pulse train.
+    uint16_t us4_start_low;
 
     /// describes a single symbol, usually a 1 or a 0
     typedef uint16_t Symbol[2];
@@ -62,14 +68,19 @@ struct Encoding
 // two brands of RF controlled switches that are used here.
 constexpr int quigg = 0;
 constexpr int impuls = 1;
+constexpr int globaltronic = 2;
 
 // describe the known protocols
-constexpr Encoding symbols[] = {
+const Encoding symbols[] = {
     // quigg
-    { 17000,    20,     175,{ { 175, 350 }, { 350, 175 } } },
+    { 17000,    20,     175, 0, { { 175, 350 }, { 350, 175 } } },
 
     // impuls
-    { 1500,     25,     0,  { { 140, 49 }, { 42, 147 } } } };
+    { 1500,     25,     0,   0, { { 140, 49 }, { 42, 147 } } },
+
+	// globaltronic
+	{ 1,        24,     756, 1784, {{250, 131},{ 131, 250}}}
+};
 
 /**
  * Description of a switch that consists of an encoding
@@ -95,7 +106,10 @@ const Switch switches[] =
         },
         { impuls, { 0b1011101011101010000000000,// off
                     0b1110101011101010000000000}// on
-        }
+        },
+		{ globaltronic, { 0b111010011011010000011111, // off
+				 	 	  0b111011000111011101001111} // on
+		}
 };
 
 /**
@@ -150,13 +164,20 @@ void send_symbol(const Encoding::Symbol &symbol)
 void send_command_once(const Encoding &code, uint32_t value)
 {
     set( led);
-    if (code.us4_delay_after_invert)
+    if (code.us4_start_high)
     {
         set( transmit);
-        delay_4us( code.us4_delay_after_invert);
+        delay_4us( code.us4_start_high);
+    }
+
+    if (code.us4_start_low)
+    {
+    	clear( transmit);
+    	delay_4us( code.us4_start_low);
     }
 
     uint8_t bitcounter = code.bits;
+
     while (bitcounter--)
     {
         send_symbol( code.alphabet[value & 0x01]);
@@ -270,12 +291,19 @@ void update( const esp_link::packet *p, uint16_t size)
     }
 }
 
+volatile bool is_disconnected = true;
+void disconnected( const esp_link::packet *p, uint16_t size)
+{
+	is_disconnected = true;
+}
+
 }
 
 int main(void)
 {
     using esp_link::mqtt::setup;
     using esp_link::mqtt::subscribe;
+    using esp_link::mqtt::publish;
 
     make_output( led|transmit);
     make_input( pir);
@@ -287,12 +315,20 @@ int main(void)
     clear_uart();    // then clear everything received on uart.
 
     while (not esp.sync()) toggle( led);
-    esp.execute( setup, nullptr, nullptr, nullptr, &update);
+    esp.execute( setup,     nullptr, &disconnected, nullptr, &update);
     esp.execute( subscribe, "spider/switch/+", 0);
 
 
+    bool previous_pir_value = false;
     for (;;)
     {
+    	bool pir_value = read( pir);
+    	if (pir_value != previous_pir_value)
+    	{
+    		esp.execute( publish, "spider/motion", pir_value?"1":"0", 0, false);
+    		previous_pir_value = pir_value;
+    	}
+
         esp.try_receive();
     }
 }
