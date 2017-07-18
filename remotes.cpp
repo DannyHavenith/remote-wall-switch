@@ -79,7 +79,7 @@ const Encoding symbols[] = {
     { 1500,     25,     0,   0, { { 140, 49 }, { 42, 147 } } },
 
 	// globaltronic
-	{ 1,        24,     756, 1784, {{250, 131},{ 131, 250}}}
+	{ 1,        24,     756, 1784, {{ 131, 250}, {250, 131}}}
 };
 
 /**
@@ -94,11 +94,12 @@ struct Switch
 };
 
 /**
- * This implementation can control three switches.
+ * This implementation can control as many switches
+ * as are listed here.
  */
 const Switch switches[] =
 {
-        { quigg,  { 0b01000001000000001101,     // off
+        { quigg,  { 0b01000001000000001101,     // off quigg2
                     0b11001001000000001101}     // on
         },
         { impuls, { 0b1011101010101110000000000,// off
@@ -107,9 +108,24 @@ const Switch switches[] =
         { impuls, { 0b1011101011101010000000000,// off
                     0b1110101011101010000000000}// on
         },
-		{ globaltronic, { 0b111010011011010000011111, // off
-				 	 	  0b111011000111011101001111} // on
-		}
+		{ globaltronic, { 0b111011000111011101001111, // off 4
+				 	 	  0b111010011011010000011111} // on
+		},
+		{ globaltronic, { 0b011101101000000110001111, // off 3
+				 	 	  0b011100011101100000001111} // on
+		},
+		{ globaltronic, { 0b001111011100010111101111, // off 1
+				 	 	  0b001101010110110010011111} // on
+		},
+        { quigg,  { 0b00000000000000001101,     // off quigg 1
+                    0b10001000000000001101}     // on
+        },
+        { quigg,  { 0b11000011000000001101,     // off quigg 3
+                    0b01001011000000001101}     // on
+        },
+        { quigg,  { 0b10000010000000001101,     // off quigg 4
+        		    0b00001010000000001101}     // on
+        }
 };
 
 /**
@@ -291,10 +307,35 @@ void update( const esp_link::packet *p, uint16_t size)
     }
 }
 
-volatile bool is_disconnected = true;
-void disconnected( const esp_link::packet *p, uint16_t size)
+const char *tohex( uint16_t value)
 {
-	is_disconnected = true;
+	static char hex[5] = {};
+	static constexpr char digits[] = {
+			'0', '1', '2', '3',
+			'4', '5', '6', '7',
+			'8', '9', 'A', 'B',
+			'C', 'D', 'E', 'F'
+	};
+
+	hex[3] = digits[ value % 16];
+	value /= 16;
+	hex[2] = digits[ value % 16];
+	value /= 16;
+	hex[1] = digits[ value % 16];
+	value /= 16;
+	hex[0] = digits[ value % 16];
+
+	return hex;
+}
+
+void connected( const esp_link::packet *p, uint16_t size)
+{
+    using esp_link::mqtt::subscribe;
+    using esp_link::mqtt::publish;
+    static uint16_t reconnect_count = 0;
+	//esp.send("connected\n");
+    esp.execute( subscribe, "spider/switch/+", 0);
+    esp.execute( publish,   "spider/connects", tohex( ++reconnect_count), 0, true);
 }
 
 }
@@ -302,7 +343,6 @@ void disconnected( const esp_link::packet *p, uint16_t size)
 int main(void)
 {
     using esp_link::mqtt::setup;
-    using esp_link::mqtt::subscribe;
     using esp_link::mqtt::publish;
 
     make_output( led|transmit);
@@ -315,9 +355,8 @@ int main(void)
     clear_uart();    // then clear everything received on uart.
 
     while (not esp.sync()) toggle( led);
-    esp.execute( setup,     nullptr, &disconnected, nullptr, &update);
-    esp.execute( subscribe, "spider/switch/+", 0);
-
+    esp.execute( setup, &connected, nullptr, nullptr, &update);
+    connected(nullptr, 0);
 
     bool previous_pir_value = false;
     for (;;)
