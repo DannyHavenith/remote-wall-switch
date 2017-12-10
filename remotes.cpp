@@ -14,13 +14,16 @@
 #include <avr_utilities/esp-link/client.hpp>
 #include <avr_utilities/esp-link/command.hpp>
 
+namespace {
 PIN_TYPE( B, 6) led;
 PIN_TYPE( D, 3) transmit;
 PIN_TYPE( B, 3) pir;
 
+bool justSentSignals = false;
 esp_link::client::uart_type uart(19200);
-IMPLEMENT_UART_INTERRUPT( uart);
 esp_link::client esp( uart);
+}
+IMPLEMENT_UART_INTERRUPT( uart);
 
 
 
@@ -307,6 +310,7 @@ void update( const esp_link::packet *p, uint16_t size)
 
         // ... and send the corresponding code.
         sendcode( sw, onoff);
+        justSentSignals = true;
     }
 }
 
@@ -367,9 +371,13 @@ int main(void)
     	bool pir_value = read( pir);
     	if (pir_value != previous_pir_value)
     	{
-    		esp.execute( publish, "spider/motion", pir_value?"1":"0", 0, false);
+    		if (not justSentSignals)
+    		{
+    			esp.execute( publish, "spider/motion", pir_value?"1":"0", 0, false);
+    		}
     		previous_pir_value = pir_value;
     	}
+    	justSentSignals = false;
 
         esp.try_receive();
     }
