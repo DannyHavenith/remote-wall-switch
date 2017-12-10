@@ -18,7 +18,7 @@ PIN_TYPE( B, 6) led;
 PIN_TYPE( D, 3) transmit;
 PIN_TYPE( B, 3) pir;
 
-serial::uart<> uart(19200);
+esp_link::client::uart_type uart(19200);
 IMPLEMENT_UART_INTERRUPT( uart);
 esp_link::client esp( uart);
 
@@ -99,37 +99,40 @@ struct Switch
  */
 const Switch switches[] =
 {
-        { quigg,  { 0b01000001000000001101,     // off quigg2
-                    0b11001001000000001101}     // on
+        { quigg,  		{ 	0b01000001000000001101,     // off quigg2
+                    		0b11001001000000001101}     // on
         },
-        { impuls, { 0b1011101010101110000000000,// off
-                    0b1110101010101110000000000}// on
+        { impuls, 		{ 	0b1011101010101110000000000,// off
+                    		0b1110101010101110000000000}// on
         },
-        { impuls, { 0b1011101011101010000000000,// off
-                    0b1110101011101010000000000}// on
+        { impuls, 		{ 	0b1011101011101010000000000,// off
+                    		0b1110101011101010000000000}// on
         },
-		{ globaltronic, { 0b111011000111011101001111, // off 4
-				 	 	  0b111010011011010000011111} // on
+		{ globaltronic, { 	0b111011000111011101001111, // off 4
+				 	 	  	0b111010011011010000011111} // on
 		},
-		{ globaltronic, { 0b011101101000000110001111, // off 3
-				 	 	  0b011100011101100000001111} // on
+		{ globaltronic, { 	0b011101101000000110001111, // off 3
+				 	 	  	0b011100011101100000001111} // on
 		},
-		{ globaltronic, { 0b001111011100010111101111, // off 1
-				 	 	  0b001101010110110010011111} // on
+		{ globaltronic, { 	0b001111011100010111101111, // off 1
+				 	 	  	0b001101010110110010011111} // on
 		},
-        { quigg,  { 0b00000000000000001101,     // off quigg 1
-                    0b10001000000000001101}     // on
+        { quigg,  		{	0b00000000000000001101,     // off quigg 1
+                    		0b10001000000000001101}     // on
         },
-        { quigg,  { 0b11000011000000001101,     // off quigg 3
-                    0b01001011000000001101}     // on
+        { quigg,  		{ 	0b11000011000000001101,     // off quigg 3
+                    		0b01001011000000001101}     // on
         },
-        { quigg,  { 0b10000010000000001101,     // off quigg 4
-        		    0b00001010000000001101}     // on
-        }
+        { quigg,  		{ 	0b10000010000000001101,     // off quigg 4
+        		    		0b00001010000000001101}     // on
+        },
+		{ globaltronic, { 	0b101010111001111010111111, // off 2
+						  	0b101000000100000001011111} // on
+		}
 };
 
 /**
- * Convenience function to get the size of an arry without
+ * Convenience function to get the size of an array without
  * the sizeof/sizeof hassle.
  */
 template<typename E, size_t size>
