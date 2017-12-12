@@ -5,6 +5,7 @@
 //  accompanying file LICENSE_1_0.txt or copy at
 //  http://www.boost.org/LICENSE_1_0.txt)
 //
+#include "timer.h"
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <avr/pgmspace.h>
@@ -19,14 +20,12 @@ PIN_TYPE( B, 6) led;
 PIN_TYPE( D, 3) transmit;
 PIN_TYPE( B, 3) pir;
 
-bool justSentSignals = false;
+Timer::TimerWaitValue motionTimeout = Timer::always;
 esp_link::client::uart_type uart(19200);
 esp_link::client esp( uart);
 }
+
 IMPLEMENT_UART_INTERRUPT( uart);
-
-
-
 
 /**
  * Structure that describes the protocol to use for a specific brand of
@@ -216,7 +215,7 @@ void send_command_once(const Encoding &code, uint32_t value)
  * In practice most RF transmitters send the code several times to increase the
  * chances of command reception.
  */
-void send_command( const Encoding &code, uint32_t value, uint8_t count = 8)
+void send_command( const Encoding &code, uint32_t value, uint8_t count = 12)
 {
     for (; count; --count)
     {
@@ -310,7 +309,7 @@ void update( const esp_link::packet *p, uint16_t size)
 
         // ... and send the corresponding code.
         sendcode( sw, onoff);
-        justSentSignals = true;
+        motionTimeout = Timer::After( 4 * Timer::ticksPerSecond);
     }
 }
 
@@ -371,13 +370,12 @@ int main(void)
     	bool pir_value = read( pir);
     	if (pir_value != previous_pir_value)
     	{
-    		if (not justSentSignals)
+    		if (Timer::HasPassedOnce( motionTimeout))
     		{
     			esp.execute( publish, "spider/motion", pir_value?"1":"0", 0, false);
     		}
     		previous_pir_value = pir_value;
     	}
-    	justSentSignals = false;
 
         esp.try_receive();
     }
