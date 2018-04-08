@@ -15,10 +15,14 @@
 #include <avr_utilities/esp-link/client.hpp>
 #include <avr_utilities/esp-link/command.hpp>
 
+#define MQTT_BASE_NAME "spider/"
+
 namespace {
 PIN_TYPE( B, 6) led;
 PIN_TYPE( D, 3) transmit;
 PIN_TYPE( B, 3) pir;
+
+
 
 Timer::TimerWaitValue motionTimeout = Timer::always;
 esp_link::client::uart_type uart(19200);
@@ -300,7 +304,7 @@ void update( const esp_link::packet *p, uint16_t size)
     const char *topic_end = topic_ptr + topic.len;
 
     // if the topic is indeed the expected one...
-    if (consume(topic_ptr, topic_end, "spider/switch/"))
+    if (consume(topic_ptr, topic_end, MQTT_BASE_NAME "switch/"))
     {
         // ...try to parse the switch number from the topic and the
         // on/off number from the message.
@@ -340,8 +344,8 @@ void connected( const esp_link::packet *p, uint16_t size)
     using esp_link::mqtt::publish;
     static uint16_t reconnect_count = 0;
 	//esp.send("connected\n");
-    esp.execute( subscribe, "spider/switch/+", 0);
-    esp.execute( publish,   "spider/connects", tohex( ++reconnect_count), 0, true);
+    esp.execute( subscribe, MQTT_BASE_NAME "switch/+", 0);
+    esp.execute( publish,   MQTT_BASE_NAME "connects", tohex( ++reconnect_count), 0, true);
 }
 
 }
@@ -372,7 +376,7 @@ int main(void)
     	{
     		if (Timer::HasPassedOnce( motionTimeout))
     		{
-    			esp.execute( publish, "spider/motion", pir_value?"1":"0", 0, false);
+    			esp.execute( publish, MQTT_BASE_NAME "motion", pir_value?"1":"0", 0, false);
     		}
     		previous_pir_value = pir_value;
     	}
